@@ -6,6 +6,7 @@ export interface Task {
   description: string;
   status: 'pending' | 'in_progress' | 'completed';
   priority: 'low' | 'medium' | 'high';
+  user_id: string;
   created_at: string;
   updated_at: string;
 }
@@ -42,6 +43,7 @@ class TaskDatabase {
         description TEXT NOT NULL,
         status TEXT NOT NULL DEFAULT 'pending',
         priority TEXT NOT NULL DEFAULT 'medium',
+        user_id TEXT NOT NULL,
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
       )
@@ -57,25 +59,25 @@ class TaskDatabase {
     localStorage.setItem('taskDatabase', JSON.stringify(buffer));
   }
 
-  async createTask(title: string, description: string, priority: Task['priority'] = 'medium'): Promise<Task> {
+  async createTask(title: string, description: string, priority: Task['priority'] = 'medium', userId: string): Promise<Task> {
     await this.initialize();
     
     const stmt = this.db.prepare(`
-      INSERT INTO tasks (title, description, priority, created_at, updated_at)
-      VALUES (?, ?, ?, datetime('now'), datetime('now'))
+      INSERT INTO tasks (title, description, priority, user_id, created_at, updated_at)
+      VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))
     `);
     
-    stmt.run([title, description, priority]);
+    stmt.run([title, description, priority, userId]);
     const lastId = this.db.exec("SELECT last_insert_rowid() as id")[0].values[0][0];
     
     this.saveToLocalStorage();
     return this.getTaskById(lastId as number)!;
   }
 
-  async getAllTasks(): Promise<Task[]> {
+  async getAllTasks(userId: string): Promise<Task[]> {
     await this.initialize();
     
-    const result = this.db.exec('SELECT * FROM tasks ORDER BY created_at DESC');
+    const result = this.db.exec('SELECT * FROM tasks WHERE user_id = ? ORDER BY created_at DESC', [userId]);
     if (result.length === 0) return [];
     
     const columns = result[0].columns;
@@ -109,7 +111,7 @@ class TaskDatabase {
     return task as Task;
   }
 
-  async updateTask(id: number, updates: Partial<Omit<Task, 'id' | 'created_at' | 'updated_at'>>): Promise<Task | undefined> {
+  async updateTask(id: number, updates: Partial<Omit<Task, 'id' | 'created_at' | 'updated_at' | 'user_id'>>): Promise<Task | undefined> {
     await this.initialize();
     
     const fields = Object.keys(updates);
@@ -140,10 +142,10 @@ class TaskDatabase {
     return true;
   }
 
-  async getTasksByStatus(status: Task['status']): Promise<Task[]> {
+  async getTasksByStatus(status: Task['status'], userId: string): Promise<Task[]> {
     await this.initialize();
     
-    const result = this.db.exec('SELECT * FROM tasks WHERE status = ? ORDER BY created_at DESC', [status]);
+    const result = this.db.exec('SELECT * FROM tasks WHERE status = ? AND user_id = ? ORDER BY created_at DESC', [status, userId]);
     if (result.length === 0) return [];
     
     const columns = result[0].columns;
@@ -158,10 +160,10 @@ class TaskDatabase {
     });
   }
 
-  async getTasksByPriority(priority: Task['priority']): Promise<Task[]> {
+  async getTasksByPriority(priority: Task['priority'], userId: string): Promise<Task[]> {
     await this.initialize();
     
-    const result = this.db.exec('SELECT * FROM tasks WHERE priority = ? ORDER BY created_at DESC', [priority]);
+    const result = this.db.exec('SELECT * FROM tasks WHERE priority = ? AND user_id = ? ORDER BY created_at DESC', [priority, userId]);
     if (result.length === 0) return [];
     
     const columns = result[0].columns;

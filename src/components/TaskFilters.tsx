@@ -13,6 +13,7 @@ interface TaskFiltersProps {
     in_progress: number;
     completed: number;
   };
+  isDarkMode: boolean;
 }
 
 export const TaskFilters: React.FC<TaskFiltersProps> = ({
@@ -20,7 +21,8 @@ export const TaskFilters: React.FC<TaskFiltersProps> = ({
   priorityFilter,
   onStatusFilterChange,
   onPriorityFilterChange,
-  taskCounts
+  taskCounts,
+  isDarkMode
 }) => {
   const statusOptions = [
     { value: 'all', label: 'All Tasks', icon: List, count: taskCounts.total },
@@ -37,15 +39,25 @@ export const TaskFilters: React.FC<TaskFiltersProps> = ({
   ];
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+    <div className={`rounded-lg shadow-md p-6 mb-6 transition-colors ${
+      isDarkMode ? 'bg-gray-800' : 'bg-white'
+    }`}>
       <div className="flex items-center gap-2 mb-4">
-        <Filter size={20} className="text-gray-600" />
-        <h2 className="text-lg font-semibold text-gray-800">Filter Tasks</h2>
+        <Filter size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
+        <h2 className={`text-lg font-semibold transition-colors ${
+          isDarkMode ? 'text-white' : 'text-gray-800'
+        }`}>
+          Filter Tasks
+        </h2>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+          <label className={`block text-sm font-medium mb-2 transition-colors ${
+            isDarkMode ? 'text-gray-300' : 'text-gray-700'
+          }`}>
+            Status
+          </label>
           <div className="grid grid-cols-2 gap-2">
             {statusOptions.map(option => {
               const Icon = option.icon;
@@ -53,15 +65,19 @@ export const TaskFilters: React.FC<TaskFiltersProps> = ({
                 <button
                   key={option.value}
                   onClick={() => onStatusFilterChange(option.value as Task['status'] | 'all')}
-                  className={`flex items-center gap-2 p-3 rounded-md text-sm transition-colors ${
+                  className={`flex items-center gap-2 p-3 rounded-md text-sm transition-colors border-2 ${
                     statusFilter === option.value
-                      ? 'bg-blue-100 text-blue-800 border-2 border-blue-300'
-                      : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border-2 border-transparent'
+                      ? 'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-700'
+                      : isDarkMode
+                        ? 'bg-gray-700 text-gray-300 hover:bg-gray-600 border-transparent'
+                        : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border-transparent'
                   }`}
                 >
                   <Icon size={16} />
                   <span>{option.label}</span>
-                  <span className="ml-auto bg-gray-200 text-gray-700 px-2 py-1 rounded-full text-xs">
+                  <span className={`ml-auto px-2 py-1 rounded-full text-xs transition-colors ${
+                    isDarkMode ? 'bg-gray-600 text-gray-300' : 'bg-gray-200 text-gray-700'
+                  }`}>
                     {option.count}
                   </span>
                 </button>
@@ -71,16 +87,22 @@ export const TaskFilters: React.FC<TaskFiltersProps> = ({
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Priority</label>
+          <label className={`block text-sm font-medium mb-2 transition-colors ${
+            isDarkMode ? 'text-gray-300' : 'text-gray-700'
+          }`}>
+            Priority
+          </label>
           <div className="space-y-2">
             {priorityOptions.map(option => (
               <button
                 key={option.value}
                 onClick={() => onPriorityFilterChange(option.value as Task['priority'] | 'all')}
-                className={`w-full flex items-center gap-2 p-3 rounded-md text-sm transition-colors ${
+                className={`w-full flex items-center gap-2 p-3 rounded-md text-sm transition-colors border-2 ${
                   priorityFilter === option.value
-                    ? 'bg-blue-100 text-blue-800 border-2 border-blue-300'
-                    : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border-2 border-transparent'
+                    ? 'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-700'
+                    : isDarkMode
+                      ? 'bg-gray-700 text-gray-300 hover:bg-gray-600 border-transparent'
+                      : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border-transparent'
                 }`}
               >
                 <div className={`w-3 h-3 rounded-full ${
