@@ -1,6 +1,6 @@
 import React from 'react';
 import { Filter, List, Clock, AlertCircle, Check } from 'lucide-react';
-import { Task } from '../database/db';
+import { Task } from '../services/api';
 
 interface TaskFiltersProps {
   statusFilter: Task['status'] | 'all';

@@ -1,37 +1,64 @@
 import React, { useState } from 'react';
-import { Edit2, Trash2, Check, Clock, AlertCircle } from 'lucide-react';
-import { Task } from '../database/db';
+import { Edit2, Trash2, Check, Clock, AlertCircle, Loader2 } from 'lucide-react';
+import { Task } from '../services/api';
 
 interface TaskCardProps {
   task: Task;
-  onUpdate: (id: number, updates: Partial<Task>) => void;
-  onDelete: (id: number) => void;
+  onUpdate: (id: number, updates: Partial<Task>) => Promise<void>;
+  onDelete: (id: number) => Promise<void>;
   isDarkMode: boolean;
+  isLoading?: boolean;
 }
 
-export const TaskCard: React.FC<TaskCardProps> = ({ task, onUpdate, onDelete, isDarkMode }) => {
+export const TaskCard: React.FC<TaskCardProps> = ({ task, onUpdate, onDelete, isDarkMode, isLoading = false }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(task.title);
   const [editDescription, setEditDescription] = useState(task.description);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
-  const handleSave = () => {
-    if (editTitle.trim() && editDescription.trim()) {
-      onUpdate(task.id, {
-        title: editTitle.trim(),
-        description: editDescription.trim()
-      });
-      setIsEditing(false);
+  const handleSave = async () => {
+    if (editTitle.trim() && editDescription.trim() && !isUpdating) {
+      setIsUpdating(true);
+      try {
+        await onUpdate(task.id, {
+          title: editTitle.trim(),
+          description: editDescription.trim()
+        });
+        setIsEditing(false);
+      } catch (error) {
+        console.error('Error updating task:', error);
+      } finally {
+        setIsUpdating(false);
+      }
     }
   };
 
-  const handleStatusChange = (newStatus: Task['status']) => {
-    onUpdate(task.id, { status: newStatus });
+  const handleStatusChange = async (newStatus: Task['status']) => {
+    if (newStatus !== task.status && !isUpdating) {
+      setIsUpdating(true);
+      try {
+        await onUpdate(task.id, { status: newStatus });
+      } catch (error) {
+        console.error('Error updating task status:', error);
+      } finally {
+        setIsUpdating(false);
+      }
+    }
   };
 
-  const handleDelete = () => {
-    onDelete(task.id);
-    setShowDeleteConfirm(false);
+  const handleDelete = async () => {
+    if (!isDeleting) {
+      setIsDeleting(true);
+      try {
+        await onDelete(task.id);
+        setShowDeleteConfirm(false);
+      } catch (error) {
+        console.error('Error deleting task:', error);
+        setIsDeleting(false);
+      }
+    }
   };
 
   const statusConfig = {
@@ -59,11 +86,12 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onUpdate, onDelete, is
   };
 
   const StatusIcon = statusConfig[task.status].icon;
+  const isTaskLoading = isLoading || isUpdating || isDeleting;
 
   return (
     <div className={`rounded-lg shadow-md p-6 border-l-4 ${priorityConfig[task.priority]} hover:shadow-lg transition-all ${
       isDarkMode ? 'bg-gray-800' : 'bg-white'
-    }`}>
+    } ${isTaskLoading ? 'opacity-75' : ''}`}>
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3">
           <StatusIcon size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
@@ -79,7 +107,8 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onUpdate, onDelete, is
         <div className="flex items-center gap-2">
           <button
             onClick={() => setIsEditing(!isEditing)}
-            className={`p-1 transition-colors ${
+            disabled={isTaskLoading}
+            className={`p-1 transition-colors disabled:opacity-50 ${
               isDarkMode 
                 ? 'text-gray-400 hover:text-blue-400' 
                 : 'text-gray-500 hover:text-blue-600'
@@ -89,7 +118,8 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onUpdate, onDelete, is
           </button>
           <button
             onClick={() => setShowDeleteConfirm(true)}
-            className={`p-1 transition-colors ${
+            disabled={isTaskLoading}
+            className={`p-1 transition-colors disabled:opacity-50 ${
               isDarkMode 
                 ? 'text-gray-400 hover:text-red-400' 
                 : 'text-gray-500 hover:text-red-600'
@@ -106,7 +136,8 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onUpdate, onDelete, is
             type="text"
             value={editTitle}
             onChange={(e) => setEditTitle(e.target.value)}
-            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${
+            disabled={isUpdating}
+            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors disabled:opacity-50 ${
               isDarkMode 
                 ? 'bg-gray-700 border-gray-600 text-white' 
                 : 'bg-white border-gray-300 text-gray-900'
@@ -116,7 +147,8 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onUpdate, onDelete, is
             value={editDescription}
             onChange={(e) => setEditDescription(e.target.value)}
             rows={3}
-            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${
+            disabled={isUpdating}
+            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors disabled:opacity-50 ${
               isDarkMode 
                 ? 'bg-gray-700 border-gray-600 text-white' 
                 : 'bg-white border-gray-300 text-gray-900'
@@ -125,13 +157,16 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onUpdate, onDelete, is
           <div className="flex gap-2">
             <button
               onClick={handleSave}
-              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
+              disabled={isUpdating || !editTitle.trim() || !editDescription.trim()}
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Save
+              {isUpdating && <Loader2 size={16} className="animate-spin" />}
+              {isUpdating ? 'Saving...' : 'Save'}
             </button>
             <button
               onClick={() => setIsEditing(false)}
-              className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
+              disabled={isUpdating}
+              className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors disabled:opacity-50"
             >
               Cancel
             </button>
@@ -154,7 +189,8 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onUpdate, onDelete, is
             <div className="flex gap-2">
               <button
                 onClick={() => handleStatusChange('pending')}
-                className={`px-3 py-1 rounded-md text-sm transition-colors ${
+                disabled={isTaskLoading}
+                className={`px-3 py-1 rounded-md text-sm transition-colors disabled:opacity-50 ${
                   task.status === 'pending' 
                     ? isDarkMode ? 'bg-gray-600 text-gray-200' : 'bg-gray-200 text-gray-800'
                     : isDarkMode ? 'bg-gray-700 text-gray-400 hover:bg-gray-600' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -164,7 +200,8 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onUpdate, onDelete, is
               </button>
               <button
                 onClick={() => handleStatusChange('in_progress')}
-                className={`px-3 py-1 rounded-md text-sm transition-colors ${
+                disabled={isTaskLoading}
+                className={`px-3 py-1 rounded-md text-sm transition-colors disabled:opacity-50 ${
                   task.status === 'in_progress' 
                     ? isDarkMode ? 'bg-blue-800 text-blue-200' : 'bg-blue-200 text-blue-800'
                     : isDarkMode ? 'bg-blue-900/30 text-blue-400 hover:bg-blue-800/50' : 'bg-blue-100 text-blue-600 hover:bg-blue-200'
@@ -174,7 +211,8 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onUpdate, onDelete, is
               </button>
               <button
                 onClick={() => handleStatusChange('completed')}
-                className={`px-3 py-1 rounded-md text-sm transition-colors ${
+                disabled={isTaskLoading}
+                className={`px-3 py-1 rounded-md text-sm transition-colors disabled:opacity-50 ${
                   task.status === 'completed' 
                     ? isDarkMode ? 'bg-green-800 text-green-200' : 'bg-green-200 text-green-800'
                     : isDarkMode ? 'bg-green-900/30 text-green-400 hover:bg-green-800/50' : 'bg-green-100 text-green-600 hover:bg-green-200'
@@ -211,13 +249,16 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onUpdate, onDelete, is
             <div className="flex gap-3">
               <button
                 onClick={handleDelete}
-                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+                disabled={isDeleting}
+                className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Delete
+                {isDeleting && <Loader2 size={16} className="animate-spin" />}
+                {isDeleting ? 'Deleting...' : 'Delete'}
               </button>
               <button
                 onClick={() => setShowDeleteConfirm(false)}
-                className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
+                disabled={isDeleting}
+                className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors disabled:opacity-50"
               >
                 Cancel
               </button>

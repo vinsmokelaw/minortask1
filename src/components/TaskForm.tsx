@@ -1,26 +1,35 @@
 import React, { useState } from 'react';
-import { Plus } from 'lucide-react';
-import { Task } from '../database/db';
+import { Plus, Loader2 } from 'lucide-react';
+import { Task } from '../services/api';
 
 interface TaskFormProps {
-  onSubmit: (title: string, description: string, priority: Task['priority']) => void;
+  onSubmit: (title: string, description: string, priority: Task['priority']) => Promise<void>;
   isDarkMode: boolean;
+  isLoading?: boolean;
 }
 
-export const TaskForm: React.FC<TaskFormProps> = ({ onSubmit, isDarkMode }) => {
+export const TaskForm: React.FC<TaskFormProps> = ({ onSubmit, isDarkMode, isLoading = false }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<Task['priority']>('medium');
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (title.trim() && description.trim()) {
-      onSubmit(title.trim(), description.trim(), priority);
-      setTitle('');
-      setDescription('');
-      setPriority('medium');
-      setIsExpanded(false);
+    if (title.trim() && description.trim() && !isSubmitting) {
+      setIsSubmitting(true);
+      try {
+        await onSubmit(title.trim(), description.trim(), priority);
+        setTitle('');
+        setDescription('');
+        setPriority('medium');
+        setIsExpanded(false);
+      } catch (error) {
+        console.error('Error creating task:', error);
+      } finally {
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -42,7 +51,8 @@ export const TaskForm: React.FC<TaskFormProps> = ({ onSubmit, isDarkMode }) => {
         </h2>
         <button
           onClick={() => setIsExpanded(!isExpanded)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+          disabled={isLoading || isSubmitting}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Plus size={20} />
           {isExpanded ? 'Cancel' : 'Add Task'}
@@ -62,7 +72,8 @@ export const TaskForm: React.FC<TaskFormProps> = ({ onSubmit, isDarkMode }) => {
               id="title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
+              disabled={isSubmitting}
+              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors disabled:opacity-50 ${
                 isDarkMode 
                   ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
                   : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
@@ -83,7 +94,8 @@ export const TaskForm: React.FC<TaskFormProps> = ({ onSubmit, isDarkMode }) => {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
-              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
+              disabled={isSubmitting}
+              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors disabled:opacity-50 ${
                 isDarkMode 
                   ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
                   : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
@@ -103,7 +115,8 @@ export const TaskForm: React.FC<TaskFormProps> = ({ onSubmit, isDarkMode }) => {
               id="priority"
               value={priority}
               onChange={(e) => setPriority(e.target.value as Task['priority'])}
-              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
+              disabled={isSubmitting}
+              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors disabled:opacity-50 ${
                 isDarkMode 
                   ? 'bg-gray-700 border-gray-600 text-white' 
                   : 'bg-white border-gray-300 text-gray-900'
@@ -118,9 +131,11 @@ export const TaskForm: React.FC<TaskFormProps> = ({ onSubmit, isDarkMode }) => {
           <div className="flex items-center gap-3">
             <button
               type="submit"
-              className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
+              disabled={isSubmitting || !title.trim() || !description.trim()}
+              className="flex items-center gap-2 px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Create Task
+              {isSubmitting && <Loader2 size={16} className="animate-spin" />}
+              {isSubmitting ? 'Creating...' : 'Create Task'}
             </button>
             <div className={`px-3 py-1 rounded-full text-sm border ${priorityColors[priority]}`}>
               {priority.charAt(0).toUpperCase() + priority.slice(1)} Priority

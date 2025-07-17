@@ -1,32 +1,47 @@
 import React, { useState } from 'react';
-import { Lock, User, Eye, EyeOff } from 'lucide-react';
+import { Lock, User, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { apiService } from '../services/api';
 
 interface AuthFormProps {
-  onLogin: (username: string, password: string) => boolean;
-  onSignup: (username: string, password: string) => boolean;
+  onAuthSuccess: (user: { id: number; username: string }) => void;
   isDarkMode: boolean;
 }
 
-export const AuthForm: React.FC<AuthFormProps> = ({ onLogin, onSignup, isDarkMode }) => {
+export const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess, isDarkMode }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setIsLoading(true);
     
     if (!username.trim() || !password.trim()) {
       setError('Please fill in all fields');
+      setIsLoading(false);
       return;
     }
 
-    const success = isLogin ? onLogin(username, password) : onSignup(username, password);
-    
-    if (!success) {
-      setError(isLogin ? 'Invalid credentials' : 'Username already exists');
+    if (password.length < 3) {
+      setError('Password must be at least 3 characters');
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      const response = isLogin 
+        ? await apiService.login(username, password)
+        : await apiService.signup(username, password);
+      
+      onAuthSuccess(response.user);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'An error occurred');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -64,7 +79,8 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onLogin, onSignup, isDarkMod
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className={`w-full pl-10 pr-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${
+                disabled={isLoading}
+                className={`w-full pl-10 pr-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors disabled:opacity-50 ${
                   isDarkMode 
                     ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
                     : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
@@ -86,7 +102,8 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onLogin, onSignup, isDarkMod
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className={`w-full pl-10 pr-12 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${
+                disabled={isLoading}
+                className={`w-full pl-10 pr-12 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors disabled:opacity-50 ${
                   isDarkMode 
                     ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
                     : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
@@ -96,7 +113,8 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onLogin, onSignup, isDarkMod
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                disabled={isLoading}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 disabled:opacity-50"
               >
                 {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>
@@ -111,16 +129,19 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onLogin, onSignup, isDarkMod
 
           <button
             type="submit"
-            className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors"
+            disabled={isLoading}
+            className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
-            {isLogin ? 'Sign In' : 'Sign Up'}
+            {isLoading && <Loader2 size={16} className="animate-spin" />}
+            {isLoading ? 'Please wait...' : (isLogin ? 'Sign In' : 'Sign Up')}
           </button>
         </form>
 
         <div className="mt-6 text-center">
           <button
             onClick={() => setIsLogin(!isLogin)}
-            className="text-blue-600 hover:text-blue-700 text-sm transition-colors"
+            disabled={isLoading}
+            className="text-blue-600 hover:text-blue-700 text-sm transition-colors disabled:opacity-50"
           >
             {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
           </button>
